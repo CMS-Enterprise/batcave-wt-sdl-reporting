@@ -1,0 +1,621 @@
+Conditions:
+  CreateNewKey:
+    Fn::Equals:
+    - ''
+    - Ref: FileAssetsBucketKmsKeyId
+  HasCloudFormationExecutionPolicies:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Fn::Join:
+        - ''
+        - Ref: CloudFormationExecutionPolicies
+  HasCustomContainerAssetsRepositoryName:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Ref: ContainerAssetsRepositoryName
+  HasCustomFileAssetsBucketName:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Ref: FileAssetsBucketName
+  HasTrustedAccounts:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Fn::Join:
+        - ''
+        - Ref: TrustedAccounts
+  HasTrustedAccountsForLookup:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Fn::Join:
+        - ''
+        - Ref: TrustedAccountsForLookup
+  PermissionsBoundarySet:
+    Fn::Not:
+    - Fn::Equals:
+      - ''
+      - Ref: InputPermissionsBoundary
+  ShouldCreatePermissionsBoundary:
+    Fn::Equals:
+    - 'true'
+    - Ref: UseExamplePermissionsBoundary
+  UseAwsManagedKey:
+    Fn::Equals:
+    - AWS_MANAGED_KEY
+    - Ref: FileAssetsBucketKmsKeyId
+  UsePublicAccessBlockConfiguration:
+    Fn::Equals:
+    - 'true'
+    - Ref: PublicAccessBlockConfiguration
+Description: This stack includes resources needed to deploy AWS CDK apps into this
+  environment
+Outputs:
+  BootstrapVersion:
+    Description: The version of the bootstrap resources that are currently mastered
+      in this stack
+    Value:
+      Fn::GetAtt:
+      - CdkBootstrapVersion
+      - Value
+  BucketDomainName:
+    Description: The domain name of the S3 bucket owned by the CDK toolkit stack
+    Value:
+      Fn::Sub: ${StagingBucket.RegionalDomainName}
+  BucketName:
+    Description: The name of the S3 bucket owned by the CDK toolkit stack
+    Value:
+      Fn::Sub: ${StagingBucket}
+  FileAssetKeyArn:
+    Description: The ARN of the KMS key used to encrypt the asset bucket (deprecated)
+    Export:
+      Name:
+        Fn::Sub: CdkBootstrap-${Qualifier}-FileAssetKeyArn
+    Value:
+      Fn::If:
+      - CreateNewKey
+      - Fn::Sub: ${FileAssetsBucketEncryptionKey.Arn}
+      - Fn::Sub: ${FileAssetsBucketKmsKeyId}
+  ImageRepositoryName:
+    Description: The name of the ECR repository which hosts docker image assets
+    Value:
+      Fn::Sub: ${ContainerAssetsRepository}
+Parameters:
+  BootstrapVariant:
+    Default: 'AWS CDK: Default Resources'
+    Description: Describe the provenance of the resources in this bootstrap stack.
+      Change this when you customize the template. To prevent accidents, the CDK CLI
+      will not overwrite bootstrap stacks with a different variant.
+    Type: String
+  CloudFormationExecutionPolicies:
+    Default: ''
+    Description: List of the ManagedPolicy ARN(s) to attach to the CloudFormation
+      deployment role
+    Type: CommaDelimitedList
+  ContainerAssetsRepositoryName:
+    Default: ''
+    Description: A user-provided custom name to use for the container assets ECR repository
+    Type: String
+  FileAssetsBucketKmsKeyId:
+    Default: ''
+    Description: Empty to create a new key (default), 'AWS_MANAGED_KEY' to use a managed
+      S3 key, or the ID/ARN of an existing key.
+    Type: String
+  FileAssetsBucketName:
+    Default: ''
+    Description: The name of the S3 bucket used for file assets
+    Type: String
+  InputPermissionsBoundary:
+    Default: ''
+    Description: Whether or not to use either the CDK supplied or custom permissions
+      boundary
+    Type: String
+  PublicAccessBlockConfiguration:
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Default: 'true'
+    Description: Whether or not to enable S3 Staging Bucket Public Access Block Configuration
+    Type: String
+  Qualifier:
+    AllowedPattern: '[A-Za-z0-9_-]{1,10}'
+    ConstraintDescription: Qualifier must be an alphanumeric identifier of at most
+      10 characters
+    Default: hnb659fds
+    Description: An identifier to distinguish multiple bootstrap stacks in the same
+      environment
+    Type: String
+  TrustedAccounts:
+    Default: ''
+    Description: List of AWS accounts that are trusted to publish assets and deploy
+      stacks to this environment
+    Type: CommaDelimitedList
+  TrustedAccountsForLookup:
+    Default: ''
+    Description: List of AWS accounts that are trusted to look up values in this environment
+    Type: CommaDelimitedList
+  UseExamplePermissionsBoundary:
+    AllowedValues:
+    - 'true'
+    - 'false'
+    Default: 'false'
+    Type: String
+Resources:
+  CdkBoostrapPermissionsBoundaryPolicy:
+    Condition: ShouldCreatePermissionsBoundary
+    Properties:
+      Description: Bootstrap Permission Boundary
+      ManagedPolicyName:
+        Fn::Sub: cdk-${Qualifier}-permissions-boundary-${AWS::AccountId}-${AWS::Region}
+      Path: /
+      PolicyDocument:
+        Statement:
+        - Action:
+          - '*'
+          Effect: Allow
+          Resource: '*'
+          Sid: ExplicitAllowAll
+        - Action:
+          - iam:CreateUser
+          - iam:CreateRole
+          - iam:PutRolePermissionsBoundary
+          - iam:PutUserPermissionsBoundary
+          Condition:
+            StringNotEquals:
+              iam:PermissionsBoundary:
+                Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/cdk-${Qualifier}-permissions-boundary-${AWS::AccountId}-${AWS::Region}
+          Effect: Deny
+          Resource: '*'
+          Sid: DenyAccessIfRequiredPermBoundaryIsNotBeingApplied
+        - Action:
+          - iam:CreatePolicyVersion
+          - iam:DeletePolicy
+          - iam:DeletePolicyVersion
+          - iam:SetDefaultPolicyVersion
+          Effect: Deny
+          Resource:
+            Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/cdk-${Qualifier}-permissions-boundary-${AWS::AccountId}-${AWS::Region}
+          Sid: DenyPermBoundaryIAMPolicyAlteration
+        - Action:
+          - iam:DeleteUserPermissionsBoundary
+          - iam:DeleteRolePermissionsBoundary
+          Effect: Deny
+          Resource: '*'
+          Sid: DenyRemovalOfPermBoundaryFromAnyUserOrRole
+        Version: '2012-10-17'
+    Type: AWS::IAM::ManagedPolicy
+  CdkBootstrapVersion:
+    Properties:
+      Name:
+        Fn::Sub: /cdk-bootstrap/${Qualifier}/version
+      Type: String
+      Value: '18'
+    Type: AWS::SSM::Parameter
+  CloudFormationExecutionRole:
+    Properties:
+      Path: /delegatedadmin/developer/
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: cloudformation.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+        Fn::If:
+        - HasCloudFormationExecutionPolicies
+        - Ref: CloudFormationExecutionPolicies
+        - Fn::If:
+          - HasTrustedAccounts
+          - Ref: AWS::NoValue
+          - - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/AdministratorAccess
+      PermissionsBoundary: arn:aws:iam::863306670509:policy/cms-cloud-admin/ct-ado-poweruser-permissions-boundary-policy
+      RoleName:
+        Fn::Sub: cdk-${Qualifier}-cfn-exec-role-${AWS::AccountId}-${AWS::Region}
+    Type: AWS::IAM::Role
+  ContainerAssetsRepository:
+    Properties:
+      ImageTagMutability: IMMUTABLE
+      LifecyclePolicy:
+        LifecyclePolicyText: "{\n  \"rules\": [\n    {\n      \"rulePriority\": 1,\n\
+          \      \"description\": \"Untagged images should not exist, but expire any\
+          \ older than one year\",\n      \"selection\": {\n        \"tagStatus\"\
+          : \"untagged\",\n        \"countType\": \"sinceImagePushed\",\n        \"\
+          countUnit\": \"days\",\n        \"countNumber\": 365\n      },\n      \"\
+          action\": { \"type\": \"expire\" }\n    }\n  ]\n}\n"
+      RepositoryName:
+        Fn::If:
+        - HasCustomContainerAssetsRepositoryName
+        - Fn::Sub: ${ContainerAssetsRepositoryName}
+        - Fn::Sub: cdk-${Qualifier}-container-assets-${AWS::AccountId}-${AWS::Region}
+      RepositoryPolicyText:
+        Statement:
+        - Action:
+          - ecr:BatchGetImage
+          - ecr:GetDownloadUrlForLayer
+          Condition:
+            StringLike:
+              aws:sourceArn:
+                Fn::Sub: arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:*
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Sid: LambdaECRImageRetrievalPolicy
+        Version: '2012-10-17'
+    Type: AWS::ECR::Repository
+  DeploymentActionRole:
+    Properties:
+      Path: /delegatedadmin/developer/
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+        - Fn::If:
+          - HasTrustedAccounts
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: TrustedAccounts
+          - Ref: AWS::NoValue
+      PermissionsBoundary: arn:aws:iam::863306670509:policy/cms-cloud-admin/ct-ado-poweruser-permissions-boundary-policy
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - cloudformation:CreateChangeSet
+            - cloudformation:DeleteChangeSet
+            - cloudformation:DescribeChangeSet
+            - cloudformation:DescribeStacks
+            - cloudformation:ExecuteChangeSet
+            - cloudformation:CreateStack
+            - cloudformation:UpdateStack
+            Effect: Allow
+            Resource: '*'
+            Sid: CloudFormationPermissions
+          - Action:
+            - s3:GetObject*
+            - s3:GetBucket*
+            - s3:List*
+            - s3:Abort*
+            - s3:DeleteObject*
+            - s3:PutObject*
+            Condition:
+              StringNotEquals:
+                s3:ResourceAccount:
+                  Ref: AWS::AccountId
+            Effect: Allow
+            Resource: '*'
+            Sid: PipelineCrossAccountArtifactsBucket
+          - Action:
+            - kms:Decrypt
+            - kms:DescribeKey
+            - kms:Encrypt
+            - kms:ReEncrypt*
+            - kms:GenerateDataKey*
+            Condition:
+              StringEquals:
+                kms:ViaService:
+                  Fn::Sub: s3.${AWS::Region}.amazonaws.com
+            Effect: Allow
+            Resource: '*'
+            Sid: PipelineCrossAccountArtifactsKey
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::Sub: ${CloudFormationExecutionRole.Arn}
+          - Action:
+            - cloudformation:DescribeStackEvents
+            - cloudformation:GetTemplate
+            - cloudformation:DeleteStack
+            - cloudformation:UpdateTerminationProtection
+            - sts:GetCallerIdentity
+            - cloudformation:GetTemplateSummary
+            Effect: Allow
+            Resource: '*'
+            Sid: CliPermissions
+          - Action:
+            - s3:GetObject*
+            - s3:GetBucket*
+            - s3:List*
+            Effect: Allow
+            Resource:
+            - Fn::Sub: ${StagingBucket.Arn}
+            - Fn::Sub: ${StagingBucket.Arn}/*
+            Sid: CliStagingBucket
+          - Action:
+            - ssm:GetParameter
+            Effect: Allow
+            Resource:
+            - Fn::Sub: arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CdkBootstrapVersion}
+            Sid: ReadVersion
+          Version: '2012-10-17'
+        PolicyName: default
+      RoleName:
+        Fn::Sub: cdk-${Qualifier}-deploy-role-${AWS::AccountId}-${AWS::Region}
+      Tags:
+      - Key: aws-cdk:bootstrap-role
+        Value: deploy
+    Type: AWS::IAM::Role
+  FileAssetsBucketEncryptionKey:
+    Condition: CreateNewKey
+    Properties:
+      KeyPolicy:
+        Statement:
+        - Action:
+          - kms:Create*
+          - kms:Describe*
+          - kms:Enable*
+          - kms:List*
+          - kms:Put*
+          - kms:Update*
+          - kms:Revoke*
+          - kms:Disable*
+          - kms:Get*
+          - kms:Delete*
+          - kms:ScheduleKeyDeletion
+          - kms:CancelKeyDeletion
+          - kms:GenerateDataKey
+          - kms:TagResource
+          - kms:UntagResource
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+          Resource: '*'
+        - Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          - kms:Encrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          Condition:
+            StringEquals:
+              kms:CallerAccount:
+                Ref: AWS::AccountId
+              kms:ViaService:
+              - Fn::Sub: s3.${AWS::Region}.amazonaws.com
+          Effect: Allow
+          Principal:
+            AWS: '*'
+          Resource: '*'
+        - Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          - kms:Encrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          Effect: Allow
+          Principal:
+            AWS:
+              Fn::Sub: ${FilePublishingRole.Arn}
+          Resource: '*'
+    Type: AWS::KMS::Key
+  FileAssetsBucketEncryptionKeyAlias:
+    Condition: CreateNewKey
+    Properties:
+      AliasName:
+        Fn::Sub: alias/cdk-${Qualifier}-assets-key
+      TargetKeyId:
+        Ref: FileAssetsBucketEncryptionKey
+    Type: AWS::KMS::Alias
+  FilePublishingRole:
+    Properties:
+      Path: /delegatedadmin/developer/
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+        - Fn::If:
+          - HasTrustedAccounts
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: TrustedAccounts
+          - Ref: AWS::NoValue
+      PermissionsBoundary: arn:aws:iam::863306670509:policy/cms-cloud-admin/ct-ado-poweruser-permissions-boundary-policy
+      RoleName:
+        Fn::Sub: cdk-${Qualifier}-file-publishing-role-${AWS::AccountId}-${AWS::Region}
+      Tags:
+      - Key: aws-cdk:bootstrap-role
+        Value: file-publishing
+    Type: AWS::IAM::Role
+  FilePublishingRoleDefaultPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:GetObject*
+          - s3:GetBucket*
+          - s3:GetEncryptionConfiguration
+          - s3:List*
+          - s3:DeleteObject*
+          - s3:PutObject*
+          - s3:Abort*
+          Effect: Allow
+          Resource:
+          - Fn::Sub: ${StagingBucket.Arn}
+          - Fn::Sub: ${StagingBucket.Arn}/*
+        - Action:
+          - kms:Decrypt
+          - kms:DescribeKey
+          - kms:Encrypt
+          - kms:ReEncrypt*
+          - kms:GenerateDataKey*
+          Effect: Allow
+          Resource:
+            Fn::If:
+            - CreateNewKey
+            - Fn::Sub: ${FileAssetsBucketEncryptionKey.Arn}
+            - Fn::Sub: arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${FileAssetsBucketKmsKeyId}
+        Version: '2012-10-17'
+      PolicyName:
+        Fn::Sub: cdk-${Qualifier}-file-publishing-role-default-policy-${AWS::AccountId}-${AWS::Region}
+      Roles:
+      - Ref: FilePublishingRole
+    Type: AWS::IAM::Policy
+  ImagePublishingRole:
+    Properties:
+      Path: /delegatedadmin/developer/
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+        - Fn::If:
+          - HasTrustedAccounts
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: TrustedAccounts
+          - Ref: AWS::NoValue
+      PermissionsBoundary: arn:aws:iam::863306670509:policy/cms-cloud-admin/ct-ado-poweruser-permissions-boundary-policy
+      RoleName:
+        Fn::Sub: cdk-${Qualifier}-image-publishing-role-${AWS::AccountId}-${AWS::Region}
+      Tags:
+      - Key: aws-cdk:bootstrap-role
+        Value: image-publishing
+    Type: AWS::IAM::Role
+  ImagePublishingRoleDefaultPolicy:
+    Properties:
+      PolicyDocument:
+        Statement:
+        - Action:
+          - ecr:PutImage
+          - ecr:InitiateLayerUpload
+          - ecr:UploadLayerPart
+          - ecr:CompleteLayerUpload
+          - ecr:BatchCheckLayerAvailability
+          - ecr:DescribeRepositories
+          - ecr:DescribeImages
+          - ecr:BatchGetImage
+          - ecr:GetDownloadUrlForLayer
+          Effect: Allow
+          Resource:
+            Fn::Sub: ${ContainerAssetsRepository.Arn}
+        - Action:
+          - ecr:GetAuthorizationToken
+          Effect: Allow
+          Resource: '*'
+        Version: '2012-10-17'
+      PolicyName:
+        Fn::Sub: cdk-${Qualifier}-image-publishing-role-default-policy-${AWS::AccountId}-${AWS::Region}
+      Roles:
+      - Ref: ImagePublishingRole
+    Type: AWS::IAM::Policy
+  LookupRole:
+    Properties:
+      Path: /delegatedadmin/developer/
+      PermissionsBoundary: arn:aws:iam::863306670509:policy/cms-cloud-admin/ct-ado-poweruser-permissions-boundary-policy
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            AWS:
+              Ref: AWS::AccountId
+        - Fn::If:
+          - HasTrustedAccountsForLookup
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: TrustedAccountsForLookup
+          - Ref: AWS::NoValue
+        - Fn::If:
+          - HasTrustedAccounts
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Ref: TrustedAccounts
+          - Ref: AWS::NoValue
+      ManagedPolicyArns:
+      - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/ReadOnlyAccess
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - kms:Decrypt
+            Effect: Deny
+            Resource: '*'
+            Sid: DontReadSecrets
+          Version: '2012-10-17'
+        PolicyName: LookupRolePolicy
+      RoleName:
+        Fn::Sub: cdk-${Qualifier}-lookup-role-${AWS::AccountId}-${AWS::Region}
+      Tags:
+      - Key: aws-cdk:bootstrap-role
+        Value: lookup
+    Type: AWS::IAM::Role
+  StagingBucket:
+    DeletionPolicy: Retain
+    Properties:
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            KMSMasterKeyID:
+              Fn::If:
+              - CreateNewKey
+              - Fn::Sub: ${FileAssetsBucketEncryptionKey.Arn}
+              - Fn::If:
+                - UseAwsManagedKey
+                - Ref: AWS::NoValue
+                - Fn::Sub: ${FileAssetsBucketKmsKeyId}
+            SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::If:
+        - HasCustomFileAssetsBucketName
+        - Fn::Sub: ${FileAssetsBucketName}
+        - Fn::Sub: cdk-${Qualifier}-assets-${AWS::AccountId}-${AWS::Region}
+      LifecycleConfiguration:
+        Rules:
+        - Id: CleanupOldVersions
+          NoncurrentVersionExpiration:
+            NoncurrentDays: 365
+          Status: Enabled
+      PublicAccessBlockConfiguration:
+        Fn::If:
+        - UsePublicAccessBlockConfiguration
+        - BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        - Ref: AWS::NoValue
+      VersioningConfiguration:
+        Status: Enabled
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+  StagingBucketPolicy:
+    Properties:
+      Bucket:
+        Ref: StagingBucket
+      PolicyDocument:
+        Id: AccessControl
+        Statement:
+        - Action: s3:*
+          Condition:
+            Bool:
+              aws:SecureTransport: 'false'
+          Effect: Deny
+          Principal: '*'
+          Resource:
+          - Fn::Sub: ${StagingBucket.Arn}
+          - Fn::Sub: ${StagingBucket.Arn}/*
+          Sid: AllowSSLRequestsOnly
+        Version: '2012-10-17'
+    Type: AWS::S3::BucketPolicy
