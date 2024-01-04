@@ -69,7 +69,7 @@ class BatCAVEVulnReport:
         )
 
     def set_epss_threshold(self, threshold: str) -> None:
-        epss_str = f"Vulnerabilities above a {threshold} EPPS score: "
+        epss_str = f"Vulnerabilities above a {threshold} EPSS score: "
 
         self.base["blocks"][7]["elements"][1]["elements"][0]["elements"][0][
             "text"

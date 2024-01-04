@@ -36,7 +36,7 @@ export class CdkStack extends cdk.Stack {
       memorySize: 1024,
       timeout: cdk.Duration.minutes(1),
       environment: {
-        'EPSS_THRESHOLD': '0.8',
+        'EPSS_THRESHOLD': '0.6',
         'SNOWFLAKE_SECRET_ARN': snowflakeCreds.secretArn,
         'SLACK_WEBHOOK_ARN': slackWebhook.secretArn,
         'SNOWFLAKE_DB': 'BUS_BATCAVE_SECURITY_DB',
