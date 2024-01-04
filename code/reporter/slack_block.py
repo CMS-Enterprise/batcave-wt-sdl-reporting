@@ -19,10 +19,10 @@ class BatCAVEVulnReport:
     def set_cisa_kev_count(self, count: int) -> None:
         self.base["blocks"][7]["elements"][0]["elements"][0]["elements"][1][
             "text"
-        ] = count
+        ] = str(count)
 
     def add_kev_vuln(self, cve_id: str, env_count: str):
-        self.base["blocks"][7]["elements"][0]["elements"][0]["elements"].append(
+        self.base["blocks"][7]["elements"].insert(1,
             {
                 "type": "rich_text_list",
                 "style": "bullet",
@@ -34,7 +34,7 @@ class BatCAVEVulnReport:
                         "elements": [
                             {
                                 "type": "text",
-                                "text": f"{cve_id} present across {env_count} AWS Accounts",
+                                "text": f"{cve_id} present across {str(env_count)} AWS Accounts",
                             }
                         ],
                     }
@@ -45,10 +45,10 @@ class BatCAVEVulnReport:
     def set_epss_count(self, count: int) -> None:
         self.base["blocks"][7]["elements"][1]["elements"][0]["elements"][1][
             "text"
-        ] = count
+        ] = str(count)
 
     def add_epss_vuln(self, cve_id: str, env_count: str):
-        self.base["blocks"][7]["elements"][1]["elements"][0]["elements"].append(
+        self.base["blocks"][7]["elements"].insert(2,
             {
                 "type": "rich_text_list",
                 "style": "bullet",
@@ -60,7 +60,7 @@ class BatCAVEVulnReport:
                         "elements": [
                             {
                                 "type": "text",
-                                "text": f"{cve_id} present across {env_count} AWS Accounts",
+                                "text": f"{cve_id} present across {str(env_count)} AWS Accounts",
                             }
                         ],
                     }

@@ -118,11 +118,10 @@ def handler(event, context):
 
     sechub_last_24 = get_sechub_findings_past_24_hours(snow_cur)
 
-    nessus_vulns = get_nessus_vulns(snow_cur)
+    nessus_vulns = get_nessus_vulns(snow_cur, get_kev_df(), get_epss_df())
 
     epss_vulns = nessus_vulns[nessus_vulns["epss"] >= epss_threshold]
     kev_vulns = nessus_vulns[nessus_vulns["isKEV"] == True]
-    kev_by_account = kev_vulns
 
     slack_report = slack_block.BatCAVEVulnReport()
 
@@ -163,4 +162,7 @@ def handler(event, context):
 
     webhook_client = WebhookClient(slack_webhook)
 
-    webhook_client.send(blocks=slack_report.get_blocks())
+    print(f"slack payload: {slack_report.get_blocks()}")
+
+    response = webhook_client.send(blocks=slack_report.get_blocks())
+    print(f"status code: {response.status_code} body: {response.body}")
