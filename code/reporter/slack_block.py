@@ -21,48 +21,52 @@ class BatCAVEVulnReport:
             "text"
         ] = count
 
-    def add_kev_vuln(self, cve_id:str, env_count:str):
-        self.base["blocks"][7]["elements"][0]["elements"][0]["elements"].append(				{
-					"type": "rich_text_list",
-					"style": "bullet",
-					"indent": 1,
-					"border": 0,
-					"elements": [
-						{
-							"type": "rich_text_section",
-							"elements": [
-								{
-									"type": "text",
-									"text": f"{cve_id} present across {env_count} AWS Accounts"
-								}
-							]
-						}
-					]
-				})
+    def add_kev_vuln(self, cve_id: str, env_count: str):
+        self.base["blocks"][7]["elements"][0]["elements"][0]["elements"].append(
+            {
+                "type": "rich_text_list",
+                "style": "bullet",
+                "indent": 1,
+                "border": 0,
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": f"{cve_id} present across {env_count} AWS Accounts",
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
 
     def set_epss_count(self, count: int) -> None:
         self.base["blocks"][7]["elements"][1]["elements"][0]["elements"][1][
             "text"
         ] = count
 
-    def add_epss_vuln(self, cve_id:str, env_count:str):
-        self.base["blocks"][7]["elements"][1]["elements"][0]["elements"].append(				{
-					"type": "rich_text_list",
-					"style": "bullet",
-					"indent": 1,
-					"border": 0,
-					"elements": [
-						{
-							"type": "rich_text_section",
-							"elements": [
-								{
-									"type": "text",
-									"text": f"{cve_id} present across {env_count} AWS Accounts"
-								}
-							]
-						}
-					]
-				})
+    def add_epss_vuln(self, cve_id: str, env_count: str):
+        self.base["blocks"][7]["elements"][1]["elements"][0]["elements"].append(
+            {
+                "type": "rich_text_list",
+                "style": "bullet",
+                "indent": 1,
+                "border": 0,
+                "elements": [
+                    {
+                        "type": "rich_text_section",
+                        "elements": [
+                            {
+                                "type": "text",
+                                "text": f"{cve_id} present across {env_count} AWS Accounts",
+                            }
+                        ],
+                    }
+                ],
+            }
+        )
 
     def set_epss_threshold(self, threshold: str) -> None:
         epss_str = f"Vulnerabilities above a {threshold} EPPS score: "
