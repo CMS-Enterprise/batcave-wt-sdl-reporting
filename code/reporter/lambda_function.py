@@ -22,7 +22,6 @@ def get_kev_df():
         "https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv"
     )
 
-
 def get_snowflake_connection(
     user: str,
     password: str,
@@ -53,8 +52,19 @@ def get_snowflake_connection(
     )
 
 
-def get_nessus_vulns():
-    raise NotImplementedError
+def get_nessus_vulns(snowflake_cur, kev_df, epss_df):
+    '''queries snowflake for nessus findings, flattens the table to be one row per CVE
+       and intersects them with both the kev and epss dataframes
+    '''
+    snowflake_cur.execute("select ACCOUNTID, INSTANCEID, CVE, report_date from SEC_VW_VULN_AWS_BATCAVE WHERE report_date >current_date-2")
+    df = snowflake_cur.fetch_pandas_all()
+    df['CVE'] = df['CVE'].apply(lambda x: json.loads(x))
+    df = df.explode('CVE', ignore_index=True)
+    df = df.dropna()
+    df = pd.merge(df, epss_df, left_on='CVE', right_on='cve')
+    df['isKEV'] = df.CVE.isin(kev_df.cveID).astype(bool)
+
+    return df
 
 
 # Base Numbers across environments
@@ -82,7 +92,7 @@ def handler(event, context):
     snowflake_role = os.environ.get("SNOWFLAKE_ROLE")
     snowflake_schema = os.environ.get("SNOWFLAKE_SCHEMA")
 
-    epss_threshold = os.environ.get("EPSS_THRESHOLD")
+    epss_threshold = float(os.environ.get("EPSS_THRESHOLD"))
 
     sm = boto3.client("secretsmanager")
 
@@ -105,7 +115,33 @@ def handler(event, context):
 
     sechub_last_24 = get_sechub_findings_past_24_hours(snow_cur)
 
+    nessus_vulns = get_nessus_vulns(snow_cur)
+
+    epss_vulns = nessus_vulns[nessus_vulns['epss'] >= epss_threshold]
+    kev_vulns = nessus_vulns[nessus_vulns['isKEV'] == True]
+    kev_by_account = kev_vulns
+
     slack_report = slack_block.BatCAVEVulnReport()
+
+    slack_report.set_epss_threshold(str(epss_threshold))
+    slack_report.set_epss_count(epss_vulns['CVE'].count())
+    slack_report.set_cisa_kev_count(kev_vulns['CVE'].count())
+
+    epss_cve_by_env = epss_vulns[['ACCOUNTID', 'CVE']].groupby('CVE')['ACCOUNTID'].nunique().reset_index()
+    kev_cve_by_env = kev_vulns[['ACCOUNTID', 'CVE']].groupby('CVE')['ACCOUNTID'].nunique().reset_index()
+
+    for row in epss_cve_by_env.iterrows():
+        cve_id = row[1][0]
+        count = row[1][1]
+
+        slack_report.add_epss_vuln(cve_id, count)
+
+    for row in kev_cve_by_env.iterrows():
+        cve_id = row[1][0]
+        count = row[1][1]
+
+        slack_report.add_kev_vuln(cve_id, count)
+
 
     for row in sechub_last_24.iterrows():
         issue_name = row[1][0]
