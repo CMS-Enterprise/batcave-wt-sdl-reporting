@@ -58,7 +58,7 @@ def get_nessus_vulns(snowflake_cur, kev_df, epss_df):
     and intersects them with both the kev and epss dataframes
     """
     snowflake_cur.execute(
-        "select ACCOUNTID, INSTANCEID, CVE, report_date from SEC_VW_VULN_AWS_BATCAVE WHERE report_date >current_date-2"
+        "select ACCOUNTID, INSTANCEID, CVE from SEC_VW_IUSG_CUMULATIVE_VULNS_BATCAVE"
     )
     df = snowflake_cur.fetch_pandas_all()
     df["CVE"] = df["CVE"].apply(lambda x: json.loads(x))
