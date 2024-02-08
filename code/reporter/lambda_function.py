@@ -1,7 +1,7 @@
 import boto3, os, json
 import pandas as pd
 import snowflake.connector
-import slack_block
+import slack_report
 from datetime import date
 from slack_sdk.webhook import WebhookClient
 
@@ -123,11 +123,9 @@ def handler(event, context):
     epss_vulns = nessus_vulns[nessus_vulns["epss"] >= epss_threshold]
     kev_vulns = nessus_vulns[nessus_vulns["isKEV"] == True]
 
-    slack_report = slack_block.BatCAVEVulnReport()
-
-    slack_report.set_epss_threshold(str(epss_threshold))
-    slack_report.set_epss_count(epss_vulns["CVE"].count())
-    slack_report.set_cisa_kev_count(kev_vulns["CVE"].count())
+    report = slack_report.SlackSecurityReport(threshold=str(epss_threshold))
+    report.header = "BatCAVE SecHub and Nessus Daily Report"
+    report.context = "Powered by BatCAVE Watchtower and CMS Security Data Lake!"
 
     epss_cve_by_env = (
         epss_vulns[["ACCOUNTID", "CVE"]]
@@ -146,23 +144,25 @@ def handler(event, context):
         cve_id = row[1][0]
         count = row[1][1]
 
-        slack_report.add_epss_vuln(cve_id, count)
+        report.add_epss_occurence(cve_id, count)
 
     for row in kev_cve_by_env.iterrows():
         cve_id = row[1][0]
         count = row[1][1]
 
-        slack_report.add_kev_vuln(cve_id, count)
+        report.add_kev_occurence(cve_id, count)
 
     for row in sechub_last_24.iterrows():
         issue_name = row[1][0]
         acct_name = row[1][1]
 
-        slack_report.add_sechub_issue(acct_name, issue_name=issue_name)
+        report.add_sechub_issue(acct_name, issue_name=issue_name)
 
     webhook_client = WebhookClient(slack_webhook)
 
-    print(f"slack payload: {slack_report.get_blocks()}")
+    payload = report.get_payload()["blocks"]
 
-    response = webhook_client.send(blocks=slack_report.get_blocks())
+    print(f"slack payload: {payload}")
+
+    response = webhook_client.send(blocks=payload)
     print(f"status code: {response.status_code} body: {response.body}")

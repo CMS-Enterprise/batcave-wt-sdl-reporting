@@ -9,3 +9,5 @@ node_modules
 cdk.out
 *notebook*
 *.env
+*__pycache__
+*.pytest_cache
