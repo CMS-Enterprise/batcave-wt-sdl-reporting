@@ -5,6 +5,9 @@ import slack_report
 from datetime import date
 from slack_sdk.webhook import WebhookClient
 
+TITLE_IGNORE = [
+    'EC2.17 EC2 instances should not use multiple ENIs'
+]
 
 def get_epss_df():
     today = date.today()
@@ -155,6 +158,9 @@ def handler(event, context):
     for row in sechub_last_24.iterrows():
         issue_name = row[1][0]
         acct_name = row[1][1]
+
+        if issue_name in TITLE_IGNORE:
+            continue
 
         report.add_sechub_issue(acct_name, issue_name=issue_name)
 
