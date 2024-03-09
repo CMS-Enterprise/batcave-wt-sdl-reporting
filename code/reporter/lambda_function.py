@@ -2,7 +2,7 @@ import boto3, os, json
 import pandas as pd
 import snowflake.connector
 import slack_report
-from datetime import date
+from datetime import date, timedelta
 from slack_sdk.webhook import WebhookClient
 
 TITLE_IGNORE = [
@@ -10,7 +10,7 @@ TITLE_IGNORE = [
 ]
 
 def get_epss_df():
-    today = date.today()
+    today = date.today() - timedelta(days=1)
     d1 = today.strftime("%Y-%m-%d")
 
     return pd.read_csv(
@@ -61,7 +61,7 @@ def get_nessus_vulns(snowflake_cur, kev_df, epss_df):
     and intersects them with both the kev and epss dataframes
     """
     snowflake_cur.execute(
-        "select ACCOUNTID, INSTANCEID, CVE from SEC_VW_IUSG_CUMULATIVE_VULNS_BATCAVE"
+        "select ACCOUNTID, INSTANCEID, CVE from SEC_VW_IUSG_CUMULATIVE_VULNS_BATCAVE WHERE LAST_SEEN >= CURRENT_TIMESTAMP() - INTERVAL '72 hours'"
     )
     df = snowflake_cur.fetch_pandas_all()
     df["CVE"] = df["CVE"].apply(lambda x: json.loads(x))

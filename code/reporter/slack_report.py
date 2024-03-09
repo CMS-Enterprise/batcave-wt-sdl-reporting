@@ -5,6 +5,7 @@ from slackblocks import (
     DividerBlock,
     SectionBlock,
     RichTextBlock,
+    RichTextLink,
     Message,
 )
 from slackblocks.rich_text import RichTextSection, RichTextList, ListType, RichText
@@ -82,11 +83,16 @@ class SlackSecurityReport:
             kev_vuln_block.elements.append(
                 RichTextList(
                     style=ListType.BULLET,
+                    indent=1,
                     elements=[
                         RichTextSection(
                             elements=[
+                                RichTextLink(
+                                    text=f"{x.cve}",
+                                    url=f"https://www.cvedetails.com/cve/{x.cve}"
+                                ),
                                 RichText(
-                                    text=f"{x.cve} present across {str(x.num_env)} AWS Accounts"
+                                    text=f" present across {str(x.num_env)} AWS Accounts"
                                 )
                             ]
                         )
@@ -119,11 +125,16 @@ class SlackSecurityReport:
             epss_vuln_block.elements.append(
                 RichTextList(
                     style=ListType.BULLET,
+                    indent=1,
                     elements=[
                         RichTextSection(
                             elements=[
+                                RichTextLink(
+                                    text=f"{x.cve}",
+                                    url=f"https://www.cvedetails.com/cve/{x.cve}"
+                                ),
                                 RichText(
-                                    text=f"{x.cve} present across {str(x.num_env)} AWS Accounts"
+                                    text=f" present across {str(x.num_env)} AWS Accounts"
                                 )
                             ]
                         )
