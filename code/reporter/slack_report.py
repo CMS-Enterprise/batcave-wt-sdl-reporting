@@ -68,7 +68,6 @@ class SlackSecurityReport:
             elements=[
                 RichTextList(
                     style=ListType.BULLET,
-                    indent=1,
                     elements=[
                         RichTextSection(
                             elements=[
