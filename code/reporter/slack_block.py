@@ -99,6 +99,11 @@ report_base_blocks = {
                     "type": "plain_text",
                     "text": "Powered by BatCAVE Watchtower and CMS Security Data Lake!",
                     "emoji": True,
+                },
+                {
+                    "type": "plain_text",
+                    "text": "Documentation and runbook: https://confluenceent.cms.gov/display/BATCAVE/SecHub+and+Nessus+Daily+Report",
+                    "emoji": True,
                 }
             ],
         },
