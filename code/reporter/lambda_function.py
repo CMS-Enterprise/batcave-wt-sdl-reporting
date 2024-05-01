@@ -129,6 +129,7 @@ def handler(event, context):
     report = slack_report.SlackSecurityReport(threshold=str(epss_threshold))
     report.header = "BatCAVE SecHub and Nessus Daily Report"
     report.context = "Powered by BatCAVE Watchtower and CMS Security Data Lake!"
+    report.footer = "Documentation and runbook: https://confluenceent.cms.gov/display/BATCAVE/SecHub+and+Nessus+Daily+Report"
 
     epss_cve_by_env = (
         epss_vulns[["ACCOUNTID", "CVE"]]

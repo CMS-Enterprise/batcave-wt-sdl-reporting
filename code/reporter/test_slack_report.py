@@ -4,10 +4,12 @@ import slack_report, json
 def test_no_results():
     header = "My Security Report"
     context = "Brought to you by Coffee"
+    footer = "This goes at the bottom!"
 
     report = slack_report.SlackSecurityReport(threshold="0.8")
     report.header = header
     report.context = context
+    report.footer = footer
     blocks = report.get_blocks()
 
     assert len(blocks) == 8
@@ -37,10 +39,13 @@ def test_no_results():
 def test_get_payload():
     header = "My Security Report"
     context = "Brought to you by Coffee"
+    footer = "This goes at the bottom!"
 
     report = slack_report.SlackSecurityReport(threshold="0.8")
     report.header = header
     report.context = context
+    report.footer = footer
 
     payload = report.get_payload()["blocks"]
     json.dumps({"blocks": payload})
+    
