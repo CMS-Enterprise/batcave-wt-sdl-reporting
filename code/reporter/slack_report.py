@@ -31,6 +31,7 @@ class SlackSecurityReport:
         self.blocks = []
         self.header = None
         self.context = None
+        self.footer = None
         self.epss_threshold = threshold
         self.sechub_issues = []
         self.epss_cves = []
@@ -143,6 +144,8 @@ class SlackSecurityReport:
                 )
             )
         self.blocks.append(epss_vuln_block)
+        self.blocks.append(DividerBlock())
+        self.blocks.append(ContextBlock(elements=[Text(self.footer)]))
 
     def get_blocks(self):
         self.__form_blocks()
